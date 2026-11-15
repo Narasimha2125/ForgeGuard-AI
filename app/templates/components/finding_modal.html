@@ -1,0 +1,72 @@
+<!-- Reusable Finding Inspection & Remediation Modal -->
+<div class="modal fade" id="findingDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content fg-modal-content">
+      <div class="modal-header fg-modal-header">
+        <div class="d-flex align-items-center gap-2">
+          <span id="modalFindingSeverity" class="fg-badge-sev sev-high">HIGH</span>
+          <span id="modalFindingRule" class="font-monospace small text-secondary">RULE-ID</span>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <h4 id="modalFindingTitle" class="h5 fw-bold text-white mb-2">Finding Title</h4>
+        <div class="d-flex align-items-center gap-2 text-secondary small font-monospace mb-4">
+          <i class="bi bi-geo-alt text-primary"></i>
+          <span id="modalFindingLocation">path/to/file.py:42</span>
+        </div>
+
+        <!-- Code Snippet Box -->
+        <label class="form-label small fw-semibold text-secondary">Problematic Code Snippet</label>
+        <pre id="modalFindingSnippet" class="fg-code-box mb-4"></pre>
+
+        <!-- Technical Explanation -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="p-3 rounded h-100" style="background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--fg-border);">
+              <label class="form-label small fw-bold text-primary mb-1"><i class="bi bi-info-circle me-1"></i>Technical Explanation</label>
+              <p id="modalTechExplanation" class="text-secondary small mb-0"></p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 rounded h-100" style="background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--fg-border);">
+              <label class="form-label small fw-bold text-warning mb-1"><i class="bi bi-shield-exclamation me-1"></i>Why This Issue Matters</label>
+              <p id="modalWhyMatters" class="text-secondary small mb-0"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommended Fix & Proposed Diff -->
+        <label class="form-label small fw-semibold text-secondary">Recommended Solution & Code Diff</label>
+        <div class="p-3 rounded mb-3" style="background-color: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+          <div class="small text-white fw-semibold mb-2" id="modalRecommendation"></div>
+          <pre id="modalDiff" class="fg-code-box mb-0 text-success" style="background-color: #06110d; border-color: rgba(16,185,129,0.3);"></pre>
+        </div>
+
+        <!-- Finding Status & Workflow Form -->
+        <form id="statusUpdateForm" method="POST" class="pt-3 border-top border-secondary-subtle">
+          <label class="form-label small fw-semibold text-secondary">Update Finding Status</label>
+          <div class="row g-2 align-items-center">
+            <div class="col-sm-5">
+              <select name="status" class="fg-form-control">
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="accepted_risk">Accepted Risk</option>
+                <option value="false_positive">False Positive</option>
+                <option value="ignored">Ignored</option>
+              </select>
+            </div>
+            <div class="col-sm-4">
+              <input type="text" name="notes" class="fg-form-control" placeholder="Resolution notes / reason...">
+            </div>
+            <div class="col-sm-3">
+              <button type="submit" class="fg-btn-primary w-100 justify-content-center py-2">Update</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

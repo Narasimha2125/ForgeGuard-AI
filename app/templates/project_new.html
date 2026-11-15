@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Upload Repository — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-xl-7">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <a href="{{ url_for('projects.index') }}" class="text-secondary text-decoration-none small">
+        <i class="bi bi-arrow-left me-1"></i> Back to Repositories
+      </a>
+    </div>
+
+    <div class="fg-card">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <div>
+          <h1 class="h4 fw-bold text-white mb-1"><i class="bi bi-cloud-arrow-up text-primary me-2"></i>Upload Software Repository</h1>
+          <p class="text-secondary small mb-0">High-capacity ZIP extraction with automated traversal defense and archive bomb protection.</p>
+        </div>
+      </div>
+
+      <form method="POST" enctype="multipart/form-data" class="mt-4" id="uploadForm">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Project / Repository Name <span class="text-danger">*</span></label>
+          <input type="text" name="name" class="fg-form-control" placeholder="e.g. backend-api-service" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Description</label>
+          <textarea name="description" rows="2" class="fg-form-control" placeholder="Short description of the software architecture and purpose..."></textarea>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Source Code ZIP Archive <span class="text-danger">*</span></label>
+          <div class="p-4 rounded text-center" style="border: 2px dashed var(--fg-border); background-color: rgba(255, 255, 255, 0.02);">
+            <i class="bi bi-file-earmark-zip fs-1 text-primary mb-2 d-block"></i>
+            <input type="file" name="archive" id="archiveInput" accept=".zip" class="d-none" required>
+            <label for="archiveInput" class="fg-btn-secondary py-1 px-3 mb-2 cursor-pointer">
+              <i class="bi bi-folder2-open"></i> Browse ZIP File
+            </label>
+            <div id="fileSelectionText" class="small text-secondary">No file selected. Up to 500 MB supported.</div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Custom Directory Exclusions</label>
+          <input type="text" name="custom_exclusions" class="fg-form-control font-monospace small" value="node_modules,.git,.venv,venv,__pycache__,dist,build,coverage,vendor">
+          <div class="form-text text-secondary" style="font-size: 0.72rem;">
+            Comma-separated list of directories to bypass during extraction and analysis to conserve resources.
+          </div>
+        </div>
+
+        <!-- Extraction Protections Notice -->
+        <div class="p-3 rounded mb-4" style="background-color: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+          <div class="d-flex gap-2">
+            <i class="bi bi-shield-check text-primary fs-5"></i>
+            <div class="small">
+              <strong class="text-white d-block mb-1">Sandbox Security Protections Active</strong>
+              <span class="text-secondary">
+                Zip slip traversal prevention, decompression ratio bounds (Zip Bomb defense), and storage quotas are enforced automatically.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 pt-2 border-top border-secondary-subtle">
+          <a href="{{ url_for('projects.index') }}" class="fg-btn-secondary">Cancel</a>
+          <button type="submit" class="fg-btn-primary" id="submitBtn">
+            <i class="bi bi-upload"></i> Extract & Register Repository
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById("archiveInput").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  const textEl = document.getElementById("fileSelectionText");
+  if (file) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    textEl.innerHTML = `<span class="text-white fw-semibold">${file.name}</span> (${sizeMb} MB)`;
+  } else {
+    textEl.textContent = "No file selected. Up to 500 MB supported.";
+  }
+});
+
+document.getElementById("uploadForm").addEventListener("submit", function() {
+  const btn = document.getElementById("submitBtn");
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Extracting & Indexing...`;
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

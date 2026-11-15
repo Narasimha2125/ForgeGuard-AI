@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Dependency Analysis — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-box-seam text-warning me-2"></i>Dependency Intelligence & SCA</h1>
+    <p class="text-secondary small mb-0">Software Composition Analysis powered by OSV.dev and package manifest parsing.</p>
+  </div>
+</div>
+
+<!-- Metrics Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="fg-stat-card stat-success">
+      <span class="fg-stat-label">Dependency Score</span>
+      <div class="fg-stat-value text-white">{{ avg_dependency_score }}</div>
+      <div class="fg-stat-subtext text-secondary">out of 100</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="fg-stat-card {% if critical_vulns > 0 %}stat-critical{% endif %}">
+      <span class="fg-stat-label">Critical CVEs</span>
+      <div class="fg-stat-value {% if critical_vulns > 0 %}text-danger{% else %}text-white{% endif %}">{{ critical_vulns }}</div>
+      <div class="fg-stat-subtext text-secondary">Supply chain flaws</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="fg-stat-card {% if high_vulns > 0 %}stat-high{% endif %}">
+      <span class="fg-stat-label">High Severity CVEs</span>
+      <div class="fg-stat-value text-warning">{{ high_vulns }}</div>
+      <div class="fg-stat-subtext text-secondary">Vulnerable packages</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Total Vulnerabilities</span>
+      <div class="fg-stat-value text-info">{{ total_vulns }}</div>
+      <div class="fg-stat-subtext text-secondary">Known advisory alerts</div>
+    </div>
+  </div>
+</div>
+
+<!-- Manifest Files Cards -->
+{% if manifest_files %}
+  <div class="fg-card p-3 mb-4">
+    <label class="form-label small fw-semibold text-secondary mb-2">Discovered Package Manifests</label>
+    <div class="d-flex flex-wrap gap-2">
+      {% for mf in manifest_files %}
+        <span class="badge bg-dark border border-secondary text-white p-2">
+          <i class="bi bi-file-earmark-code text-info me-1"></i>{{ mf.file_name }}
+          <span class="text-secondary ms-1">({{ mf.project.name }})</span>
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<!-- Filters Bar -->
+<div class="fg-card p-3 mb-4">
+  <form method="GET" class="row g-2 align-items-center">
+    <div class="col-md-4">
+      <select name="project_id" class="fg-form-control" onchange="this.form.submit()">
+        <option value="">All Repositories</option>
+        {% for p in projects %}
+          <option value="{{ p.id }}" {% if selected_project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="severity" class="fg-form-control" onchange="this.form.submit()">
+        <option value="">All Severities</option>
+        <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+        <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+        <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>Medium</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <div class="input-group">
+        <input type="text" name="q" class="fg-form-control" placeholder="Search package name, CVE, or advisory..." value="{{ search_query }}">
+        <button class="fg-btn-primary" type="submit"><i class="bi bi-search"></i> Filter</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Vulnerable Dependencies Table -->
+<div class="fg-card">
+  <div class="fg-card-header">
+    <h3 class="fg-card-title"><i class="bi bi-shield-x text-warning me-2"></i>Vulnerable Dependencies ({{ findings|length }})</h3>
+  </div>
+
+  {% if findings %}
+    <div class="table-responsive">
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Vulnerability ID</th>
+            <th>Manifest File</th>
+            <th>Advisory Title</th>
+            <th>Recommendation</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings %}
+            <tr>
+              <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+              <td class="font-monospace small text-warning fw-semibold">{{ f.rule_id.replace('DEP-', '') }}</td>
+              <td class="font-monospace small text-white text-truncate" style="max-width: 220px;">
+                {{ f.file_path }}
+              </td>
+              <td class="fw-semibold text-white">{{ f.title }}</td>
+              <td class="small text-secondary">{{ f.recommendation }}</td>
+              <td class="text-end">
+                <button class="fg-btn-secondary py-1 px-2 small" onclick="openFindingModal({{ f.id }})">Upgrade Fix</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-secondary">
+      <i class="bi bi-patch-check fs-2 text-success d-block mb-2"></i>
+      All third-party package dependencies pass vulnerability checks.
+    </div>
+  {% endif %}
+</div>
+
+<!-- Finding Detail Modal Container -->
+{% include "components/finding_modal.html" %}
+{% endblock %}

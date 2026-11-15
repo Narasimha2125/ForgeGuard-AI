@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Code Quality Analysis — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-code-slash text-info me-2"></i>Code Quality & Maintainability</h1>
+    <p class="text-secondary small mb-0">AST-based static code analysis, Radon cyclomatic complexity, and maintainability metrics.</p>
+  </div>
+</div>
+
+<!-- Quality Metrics Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card stat-success">
+      <span class="fg-stat-label">Quality Score</span>
+      <div class="fg-stat-value text-white">{{ avg_quality }}</div>
+      <div class="fg-stat-subtext text-secondary">out of 100</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">High Complexity</span>
+      <div class="fg-stat-value text-warning">{{ complexity_count }}</div>
+      <div class="fg-stat-subtext text-secondary">Radon CC >= 10</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Long Functions</span>
+      <div class="fg-stat-value text-info">{{ long_func_count }}</div>
+      <div class="fg-stat-subtext text-secondary">> 60 lines</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Deep Nesting</span>
+      <div class="fg-stat-value text-warning">{{ nesting_count }}</div>
+      <div class="fg-stat-subtext text-secondary">> 4 levels deep</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Unused Imports</span>
+      <div class="fg-stat-value text-secondary">{{ unused_import_count }}</div>
+      <div class="fg-stat-subtext text-secondary">Clean namespace</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card {% if syntax_error_count > 0 %}stat-critical{% endif %}">
+      <span class="fg-stat-label">Syntax Flaws</span>
+      <div class="fg-stat-value {% if syntax_error_count > 0 %}text-danger{% else %}text-white{% endif %}">{{ syntax_error_count }}</div>
+      <div class="fg-stat-subtext text-secondary">Parsing issues</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="fg-card p-3 mb-4">
+  <form method="GET" class="row g-2 align-items-center">
+    <div class="col-md-4">
+      <select name="project_id" class="fg-form-control" onchange="this.form.submit()">
+        <option value="">All Repositories</option>
+        {% for p in projects %}
+          <option value="{{ p.id }}" {% if selected_project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="severity" class="fg-form-control" onchange="this.form.submit()">
+        <option value="">All Severities</option>
+        <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+        <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>Medium</option>
+        <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Low</option>
+        <option value="info" {% if severity_filter == 'info' %}selected{% endif %}>Info</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <div class="input-group">
+        <input type="text" name="q" class="fg-form-control" placeholder="Search rules, files, keywords..." value="{{ search_query }}">
+        <button class="fg-btn-primary" type="submit"><i class="bi bi-search"></i> Filter</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Findings Table -->
+<div class="fg-card">
+  <div class="fg-card-header">
+    <h3 class="fg-card-title"><i class="bi bi-list-ul text-info me-2"></i>Code Quality Findings ({{ findings|length }})</h3>
+  </div>
+
+  {% if findings %}
+    <div class="table-responsive">
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Rule ID</th>
+            <th>Location</th>
+            <th>Finding Title</th>
+            <th>Tool</th>
+            <th class="text-end">Inspect</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings %}
+            <tr>
+              <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+              <td class="font-monospace small text-secondary">{{ f.rule_id }}</td>
+              <td class="font-monospace small text-white text-truncate" style="max-width: 240px;">
+                {{ f.file_path }}:{{ f.line_number or '' }}
+              </td>
+              <td class="fw-semibold text-white">{{ f.title }}</td>
+              <td><span class="badge bg-dark border border-secondary text-secondary small">{{ f.detection_tool }}</span></td>
+              <td class="text-end">
+                <button class="fg-btn-secondary py-1 px-2 small" onclick="openFindingModal({{ f.id }})">Details</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-secondary">
+      <i class="bi bi-check-circle fs-2 text-success d-block mb-2"></i>
+      No code quality violations found for the selected criteria.
+    </div>
+  {% endif %}
+</div>
+
+<!-- Finding Detail Modal Container -->
+{% include "components/finding_modal.html" %}
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Security Analysis — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-shield-lock text-danger me-2"></i>Security Analysis & Intelligence</h1>
+    <p class="text-secondary small mb-0">Secret detection, injection anti-patterns, insecure deserialization, and cryptographic audits.</p>
+  </div>
+</div>
+
+<!-- Security Metrics Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card stat-success">
+      <span class="fg-stat-label">Security Score</span>
+      <div class="fg-stat-value text-white">{{ avg_security }}</div>
+      <div class="fg-stat-subtext text-secondary">out of 100</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card {% if critical_count > 0 %}stat-critical{% endif %}">
+      <span class="fg-stat-label">Critical Flaws</span>
+      <div class="fg-stat-value {% if critical_count > 0 %}text-danger{% else %}text-white{% endif %}">{{ critical_count }}</div>
+      <div class="fg-stat-subtext text-secondary">RCE / Secrets</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card {% if high_count > 0 %}stat-high{% endif %}">
+      <span class="fg-stat-label">High Severity</span>
+      <div class="fg-stat-value text-warning">{{ high_count }}</div>
+      <div class="fg-stat-subtext text-secondary">Urgent triage</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Leaked Secrets</span>
+      <div class="fg-stat-value text-danger">{{ secret_leaks }}</div>
+      <div class="fg-stat-subtext text-secondary">Keys & tokens</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Injection Risks</span>
+      <div class="fg-stat-value text-warning">{{ injection_risks }}</div>
+      <div class="fg-stat-subtext text-secondary">SQL & Command</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Insecure Config</span>
+      <div class="fg-stat-value text-info">{{ insecure_configs }}</div>
+      <div class="fg-stat-subtext text-secondary">Debug & CORS</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="fg-card p-3 mb-4">
+  <form method="GET" class="row g-2 align-items-center">
+    <div class="col-md-4">
+      <select name="project_id" class="fg-form-control" onchange="this.form.submit()">
+        <option value="">All Repositories</option>
+        {% for p in projects %}
+          <option value="{{ p.id }}" {% if selected_project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="severity" class="fg-form-control" onchange="this.form.submit()">
+        <option value="">All Severities</option>
+        <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+        <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+        <option value="medium" {% if severity_filter == 'medium' %}selected{% endif %}>Medium</option>
+        <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Low</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <div class="input-group">
+        <input type="text" name="q" class="fg-form-control" placeholder="Search vulnerability type, rule, or file..." value="{{ search_query }}">
+        <button class="fg-btn-primary" type="submit"><i class="bi bi-search"></i> Filter</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Security Findings Table -->
+<div class="fg-card">
+  <div class="fg-card-header">
+    <h3 class="fg-card-title"><i class="bi bi-shield-shaded text-danger me-2"></i>Security Findings ({{ findings|length }})</h3>
+  </div>
+
+  {% if findings %}
+    <div class="table-responsive">
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Rule ID</th>
+            <th>Location</th>
+            <th>Vulnerability Title</th>
+            <th>Status</th>
+            <th class="text-end">Remediation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings %}
+            <tr>
+              <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+              <td class="font-monospace small text-secondary">{{ f.rule_id }}</td>
+              <td class="font-monospace small text-white text-truncate" style="max-width: 220px;">
+                {{ f.file_path }}:{{ f.line_number or '' }}
+              </td>
+              <td class="fw-semibold text-white">
+                {% if f.severity == 'critical' %}
+                  <i class="bi bi-exclamation-octagon-fill text-danger me-1"></i>
+                {% endif %}
+                {{ f.title }}
+              </td>
+              <td>
+                <span class="badge bg-dark border border-secondary text-secondary small">{{ f.status|upper }}</span>
+              </td>
+              <td class="text-end">
+                <button class="fg-btn-secondary py-1 px-2 small" onclick="openFindingModal({{ f.id }})">Inspect Fix</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-secondary">
+      <i class="bi bi-shield-check fs-2 text-success d-block mb-2"></i>
+      No active security vulnerabilities detected for the selected criteria.
+    </div>
+  {% endif %}
+</div>
+
+<!-- Finding Detail Modal Container -->
+{% include "components/finding_modal.html" %}
+{% endblock %}

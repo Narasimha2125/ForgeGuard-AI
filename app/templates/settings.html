@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Settings — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-gear text-primary me-2"></i>Platform & Account Settings</h1>
+    <p class="text-secondary small mb-0">Configure your profile, security credentials, scanning thresholds, and notification alerts.</p>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Profile & Password -->
+  <div class="col-lg-6">
+    <!-- Profile Card -->
+    <div class="fg-card mb-4">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h2 class="h5 fw-bold text-white mb-0"><i class="bi bi-person me-2"></i>Profile Management</h2>
+      </div>
+      <form action="{{ url_for('settings.update_profile') }}" method="POST" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Full Name</label>
+          <input type="text" name="name" class="fg-form-control" value="{{ current_user.name }}" required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Email Address</label>
+          <input type="email" name="email" class="fg-form-control" value="{{ current_user.email }}" required>
+        </div>
+        <button type="submit" class="fg-btn-primary py-2 px-3">
+          <i class="bi bi-check-lg"></i> Update Profile
+        </button>
+      </form>
+    </div>
+
+    <!-- Password Card -->
+    <div class="fg-card">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h2 class="h5 fw-bold text-white mb-0"><i class="bi bi-lock me-2"></i>Change Password</h2>
+      </div>
+      <form action="{{ url_for('settings.change_password') }}" method="POST" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Current Password</label>
+          <input type="password" name="current_password" class="fg-form-control" placeholder="••••••••" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">New Password</label>
+          <input type="password" name="new_password" class="fg-form-control" placeholder="••••••••" minlength="8" required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label small fw-semibold text-secondary">Confirm New Password</label>
+          <input type="password" name="confirm_password" class="fg-form-control" placeholder="••••••••" minlength="8" required>
+        </div>
+        <button type="submit" class="fg-btn-primary py-2 px-3">
+          <i class="bi bi-shield-check"></i> Update Password
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scanner & Notification Preferences -->
+  <div class="col-lg-6">
+    <!-- Scanner Preferences -->
+    <div class="fg-card mb-4">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h2 class="h5 fw-bold text-white mb-0"><i class="bi bi-sliders me-2"></i>Scanner & Resource Preferences</h2>
+      </div>
+      <form action="{{ url_for('settings.update_preferences') }}" method="POST" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Default Excluded Folders</label>
+          <input type="text" name="default_excluded_dirs" class="fg-form-control font-monospace small" value="{{ settings.default_excluded_dirs }}">
+          <div class="form-text text-secondary" style="font-size: 0.72rem;">Skipped during extraction and deep analysis.</div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6">
+            <label class="form-label small fw-semibold text-secondary">Scan Timeout (Seconds)</label>
+            <input type="number" name="scan_timeout_seconds" class="fg-form-control" value="{{ settings.scan_timeout_seconds }}" min="30" max="1800">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label small fw-semibold text-secondary">Max File Size (MB)</label>
+            <input type="number" name="max_file_size_mb" class="fg-form-control" value="{{ settings.max_file_size_mb }}" min="1" max="500">
+          </div>
+        </div>
+
+        <div class="border-top border-secondary-subtle pt-3 mb-4">
+          <label class="form-label small fw-bold text-white mb-2 d-block">Alert Toggles</label>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="notify_on_scan_complete" id="notifComplete" {% if settings.notify_on_scan_complete %}checked{% endif %}>
+            <label class="form-check-label text-secondary small" for="notifComplete">Notify on scan completion</label>
+          </div>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" name="notify_on_critical_findings" id="notifCrit" {% if settings.notify_on_critical_findings %}checked{% endif %}>
+            <label class="form-check-label text-secondary small" for="notifCrit">Alert immediately on critical security vulnerabilities</label>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="notify_on_security_alerts" id="notifSec" {% if settings.notify_on_security_alerts %}checked{% endif %}>
+            <label class="form-check-label text-secondary small" for="notifSec">Alert on secret / credential leak detection</label>
+          </div>
+        </div>
+
+        <button type="submit" class="fg-btn-primary py-2 px-3">
+          <i class="bi bi-save"></i> Save Preferences
+        </button>
+      </form>
+    </div>
+
+    <!-- Danger Zone Card -->
+    <div class="fg-card border-danger-subtle" style="background-color: rgba(239, 68, 68, 0.04);">
+      <div class="fg-card-header pb-2 border-bottom border-danger-subtle">
+        <h2 class="h5 fw-bold text-danger mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Danger Zone</h2>
+      </div>
+      <div class="mt-3">
+        <p class="text-secondary small mb-3">
+          Permanently delete your account along with all uploaded repositories, scan history, metrics, and generated reports. This action cannot be undone.
+        </p>
+        <button type="button" class="fg-btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+          <i class="bi bi-trash"></i> Delete Account
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Audit Logs Table -->
+<div class="fg-card">
+  <div class="fg-card-header">
+    <h3 class="fg-card-title"><i class="bi bi-journal-text text-primary me-2"></i>Recent Security Audit Events</h3>
+  </div>
+  {% if audit_logs %}
+    <div class="table-responsive">
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Action</th>
+            <th>Resource</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in audit_logs %}
+            <tr>
+              <td class="text-secondary small">{{ log.created_at.strftime('%d %b %Y, %H:%M:%S') if log.created_at else '' }}</td>
+              <td><span class="badge bg-dark border border-secondary text-primary font-monospace">{{ log.action }}</span></td>
+              <td class="small text-secondary">{{ log.resource_type }} #{{ log.resource_id or '' }}</td>
+              <td class="text-white small">{{ log.details }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-4 text-secondary small">No audit logs recorded yet.</div>
+  {% endif %}
+</div>
+
+<!-- Delete Account Confirmation Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content fg-modal-content border-danger">
+      <div class="modal-header fg-modal-header border-danger">
+        <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Account Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('settings.delete_account') }}" method="POST">
+        <div class="modal-body p-4">
+          <p class="text-white small">
+            To confirm deletion of your account and all stored repositories and reports, type <strong>DELETE</strong> below:
+          </p>
+          <input type="text" name="confirm_text" class="fg-form-control border-danger font-monospace" placeholder="DELETE" required>
+        </div>
+        <div class="modal-footer fg-modal-footer">
+          <button type="button" class="fg-btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="fg-btn-danger">Permanently Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

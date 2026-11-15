@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Reports — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Executive & Technical Reports</h1>
+    <p class="text-secondary small mb-0">Export compliance documentation, risk breakdowns, and developer remediation summaries.</p>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Generate New Report Form -->
+  <div class="col-lg-5">
+    <div class="fg-card h-100">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h2 class="h5 fw-bold text-white mb-0"><i class="bi bi-file-earmark-plus text-primary me-2"></i>Generate Report</h2>
+      </div>
+
+      {% if scans %}
+        <form action="{{ url_for('reports.generate') }}" method="POST" class="mt-3">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-secondary">Select Completed Scan <span class="text-danger">*</span></label>
+            <select name="scan_id" class="fg-form-control" required>
+              {% for s in scans %}
+                <option value="{{ s.id }}">
+                  Scan #{{ s.id }} — {{ s.project.name }} ({{ s.health_label }}, {{ s.findings_count }} findings)
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-semibold text-secondary">Export Format</label>
+            <div class="row g-2">
+              <div class="col-4">
+                <label class="p-3 rounded border border-secondary-subtle d-block text-center cursor-pointer" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <input type="radio" name="format" value="pdf" class="form-check-input mb-1" checked>
+                  <span class="d-block fw-bold text-white small"><i class="bi bi-filetype-pdf text-danger me-1"></i>PDF</span>
+                </label>
+              </div>
+              <div class="col-4">
+                <label class="p-3 rounded border border-secondary-subtle d-block text-center cursor-pointer" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <input type="radio" name="format" value="csv" class="form-check-input mb-1">
+                  <span class="d-block fw-bold text-white small"><i class="bi bi-filetype-csv text-success me-1"></i>CSV</span>
+                </label>
+              </div>
+              <div class="col-4">
+                <label class="p-3 rounded border border-secondary-subtle d-block text-center cursor-pointer" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <input type="radio" name="format" value="json" class="form-check-input mb-1">
+                  <span class="d-block fw-bold text-white small"><i class="bi bi-filetype-json text-warning me-1"></i>JSON</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3 rounded mb-3 small" style="background-color: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+            <i class="bi bi-shield-check text-primary me-1"></i>
+            <span class="text-secondary">All reports automatically redact sensitive discovered credentials and tokens.</span>
+          </div>
+
+          <button type="submit" class="fg-btn-primary w-100 justify-content-center py-2">
+            <i class="bi bi-download"></i> Generate & Download
+          </button>
+        </form>
+      {% else %}
+        <div class="text-center py-4 text-secondary small">
+          No completed scans available to generate reports. Launch a scan first!
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Available Generated Reports -->
+  <div class="col-lg-7">
+    <div class="fg-card h-100">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h3 class="fg-card-title"><i class="bi bi-folder-check text-success me-2"></i>Generated Reports Archive ({{ reports|length }})</h3>
+      </div>
+
+      {% if reports %}
+        <div class="table-responsive mt-3">
+          <table class="fg-table">
+            <thead>
+              <tr>
+                <th>Format</th>
+                <th>File Name</th>
+                <th>Project</th>
+                <th>Size</th>
+                <th class="text-end">Download</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in reports %}
+                <tr>
+                  <td>
+                    <span class="badge {% if r.report_format == 'pdf' %}bg-danger{% elif r.report_format == 'csv' %}bg-success{% else %}bg-warning{% endif %}">
+                      {{ r.report_format|upper }}
+                    </span>
+                  </td>
+                  <td class="font-monospace small text-white text-truncate" style="max-width: 220px;">
+                    {{ r.file_name }}
+                  </td>
+                  <td class="small text-secondary">{{ r.project.name }}</td>
+                  <td class="small text-secondary">{{ (r.file_size_bytes / 1024)|round(1) }} KB</td>
+                  <td class="text-end">
+                    <a href="{{ url_for('reports.download', report_id=r.id) }}" class="fg-btn-primary py-1 px-2 small">
+                      <i class="bi bi-download"></i> Save
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5 text-secondary">
+          <i class="bi bi-file-earmark-x fs-2 d-block mb-2 text-secondary"></i>
+          No reports generated yet. Use the generator on the left to compile your first report.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

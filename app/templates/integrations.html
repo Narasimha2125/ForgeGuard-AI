@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Integrations — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-puzzle text-primary me-2"></i>Version Control & CI/CD Integrations</h1>
+    <p class="text-secondary small mb-0">Connect external Git hosting providers and configure automated webhook scan triggers.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- GitHub Connection Card -->
+  <div class="col-lg-6">
+    <div class="fg-card h-100">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-github fs-3 text-white"></i>
+          <div>
+            <h2 class="h5 fw-bold text-white mb-0">GitHub Integration</h2>
+            <span class="text-secondary small">Repository sync & Webhook triggers</span>
+          </div>
+        </div>
+        {% if github_integration and github_integration.is_active and github_integration.access_token %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Connected (@{{ github_integration.account_name }})</span>
+        {% else %}
+          <span class="badge bg-secondary-subtle text-secondary px-2 py-1">Not Connected</span>
+        {% endif %}
+      </div>
+
+      <div class="p-3">
+        {% if github_integration and github_integration.is_active and github_integration.access_token %}
+          <div class="p-3 rounded border border-success-subtle bg-success-subtle-10 mb-4">
+            <strong class="text-white d-block mb-1">GitHub Connected Successfully</strong>
+            <p class="text-secondary small mb-2">
+              Your Personal Access Token is active for account <strong>@{{ github_integration.account_name }}</strong>. You can import any public or private repository below.
+            </p>
+            <form action="{{ url_for('integrations.disconnect_github') }}" method="POST" class="m-0">
+              <button type="submit" class="fg-btn-danger py-1 px-3 small">
+                <i class="bi bi-plug"></i> Disconnect GitHub
+              </button>
+            </form>
+          </div>
+        {% else %}
+          <p class="text-secondary small mb-3">
+            Connect your GitHub account using a Personal Access Token with <code>repo</code> read scope to import and analyze repositories directly.
+          </p>
+
+          <form action="{{ url_for('integrations.connect_github') }}" method="POST" class="mb-4">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold text-secondary">GitHub Personal Access Token (PAT) <span class="text-danger">*</span></label>
+              <input type="password" name="personal_access_token" class="fg-form-control font-monospace" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" required>
+              <div class="form-text text-secondary" style="font-size: 0.72rem;">
+                Generate in <a href="https://github.com/settings/tokens" target="_blank" class="text-primary">GitHub Settings → Developer Settings → Personal Access Tokens</a>.
+              </div>
+            </div>
+            <button type="submit" class="fg-btn-primary w-100 justify-content-center py-2">
+              <i class="bi bi-link-45deg"></i> Connect GitHub Account
+            </button>
+          </form>
+        {% endif %}
+
+        <!-- Webhook Trigger Documentation -->
+        <div class="pt-3 border-top border-secondary-subtle">
+          <h4 class="h6 fw-bold text-white mb-2"><i class="bi bi-broadcast text-warning me-1"></i>Continuous Inspection Webhook</h4>
+          <p class="text-secondary small mb-2">
+            Configure a webhook on your GitHub repository to trigger an automated scan upon every push:
+          </p>
+          <div class="p-2 rounded font-monospace small text-white bg-dark border border-secondary mb-2">
+            Payload URL: https://your-domain.com/api/webhooks/github<br/>
+            Content type: application/json<br/>
+            Event: Just the push event
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repositories List from GitHub -->
+  <div class="col-lg-6">
+    <div class="fg-card h-100">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h3 class="fg-card-title"><i class="bi bi-cloud-download text-primary me-2"></i>Import From GitHub</h3>
+        <span class="text-secondary small">{{ github_repos|length }} available</span>
+      </div>
+
+      {% if github_repos %}
+        <div class="table-responsive mt-3" style="max-height: 480px; overflow-y: auto;">
+          <table class="fg-table">
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Language</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for repo in github_repos %}
+                <tr>
+                  <td>
+                    <strong class="text-white d-block text-truncate" style="max-width: 220px;">
+                      {{ repo.name }}
+                    </strong>
+                    <span class="text-secondary small text-truncate d-block" style="max-width: 220px;">
+                      {{ repo.description or repo.full_name }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge bg-dark border border-secondary text-secondary small">{{ repo.language }}</span>
+                  </td>
+                  <td class="text-end">
+                    <form action="{{ url_for('integrations.import_repo') }}" method="POST" class="d-inline m-0">
+                      <input type="hidden" name="repo_full_name" value="{{ repo.full_name }}">
+                      <input type="hidden" name="auto_scan" value="1">
+                      <button type="submit" class="fg-btn-primary py-1 px-2 small">
+                        <i class="bi bi-box-arrow-in-down"></i> Import & Scan
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5 text-secondary">
+          <i class="bi bi-github fs-2 text-secondary d-block mb-2"></i>
+          Connect your GitHub account on the left to browse and import your cloud repositories.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

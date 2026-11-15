@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% block title %}Analytics Dashboard — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">SECURITY & QUALITY INTELLIGENCE</span>
+      <span class="text-secondary small">Real-Time Telemetry</span>
+    </div>
+    <h1 class="h3 fw-bold text-white mb-0">Platform Overview</h1>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('projects.new') }}" class="fg-btn-secondary">
+      <i class="bi bi-cloud-arrow-up"></i> Upload Repository
+    </a>
+    <a href="{{ url_for('scans.index') }}" class="fg-btn-primary">
+      <i class="bi bi-play-fill fs-5"></i> Launch New Scan
+    </a>
+  </div>
+</div>
+
+<!-- Primary Health Dials / Top Metric Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Total Repositories</span>
+      <div class="fg-stat-value">{{ total_repos }}</div>
+      <div class="fg-stat-subtext text-secondary"><i class="bi bi-folder-check text-info me-1"></i> Active software projects</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="fg-stat-card">
+      <span class="fg-stat-label">Total Scans Executed</span>
+      <div class="fg-stat-value">{{ total_scans }}</div>
+      <div class="fg-stat-subtext text-secondary"><i class="bi bi-activity text-primary me-1"></i> {{ total_files_analyzed }} files inspected</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="fg-stat-card {% if critical_count > 0 %}stat-critical{% else %}stat-success{% endif %}">
+      <span class="fg-stat-label">Critical Findings</span>
+      <div class="fg-stat-value text-danger">{{ critical_count }}</div>
+      <div class="fg-stat-subtext text-secondary"><i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Immediate action required</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="fg-stat-card stat-success">
+      <span class="fg-stat-label">Overall Health Score</span>
+      <div class="fg-stat-value text-white">{{ overall_health }}<span class="fs-6 text-secondary fw-normal">/100</span></div>
+      <div class="fg-stat-subtext">
+        <span class="fg-health-badge health-{{ 'excellent' if overall_health >= 90 else ('good' if overall_health >= 70 else ('needs-improvement' if overall_health >= 50 else 'poor')) }} py-0 px-2" style="font-size: 0.72rem;">
+          {{ 'Excellent' if overall_health >= 90 else ('Good' if overall_health >= 70 else ('Needs Improvement' if overall_health >= 50 else 'Poor')) }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Scores Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="fg-card p-3 mb-0">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-secondary small fw-semibold">SECURITY SCORE</span>
+        <span class="text-white fw-bold">{{ security_score }}/100</span>
+      </div>
+      <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.06);">
+        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ security_score }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between small text-secondary mt-2">
+        <span>Secret Leaks & Injection</span>
+        <span>{{ critical_count + high_count }} High/Crit Flaws</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="fg-card p-3 mb-0">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-secondary small fw-semibold">CODE QUALITY SCORE</span>
+        <span class="text-white fw-bold">{{ quality_score }}/100</span>
+      </div>
+      <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.06);">
+        <div class="progress-bar bg-info" role="progressbar" style="width: {{ quality_score }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between small text-secondary mt-2">
+        <span>AST & Complexity</span>
+        <span>Radon Metrics</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="fg-card p-3 mb-0">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-secondary small fw-semibold">DEPENDENCY HEALTH</span>
+        <span class="text-white fw-bold">{{ dependency_score }}/100</span>
+      </div>
+      <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.06);">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ dependency_score }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between small text-secondary mt-2">
+        <span>OSV Vulnerability Intelligence</span>
+        <span>SCA Validated</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section: 7 Required Charts -->
+<div class="row g-4 mb-4">
+  <!-- Chart 1: Issue Severity Distribution -->
+  <div class="col-lg-4">
+    <div class="fg-card h-100">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-pie-chart text-primary me-2"></i>Issue Severity</h3>
+        <span class="text-secondary small">Active Findings</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="severityChart"></canvas>
+      </div>
+      <div class="d-flex justify-content-around text-center mt-3 pt-2 border-top border-secondary-subtle">
+        <div><span class="d-block fw-bold text-danger">{{ critical_count }}</span><span class="text-secondary" style="font-size:0.7rem;">Critical</span></div>
+        <div><span class="d-block fw-bold text-warning">{{ high_count }}</span><span class="text-secondary" style="font-size:0.7rem;">High</span></div>
+        <div><span class="d-block fw-bold text-info">{{ medium_count }}</span><span class="text-secondary" style="font-size:0.7rem;">Medium</span></div>
+        <div><span class="d-block fw-bold text-secondary">{{ low_count }}</span><span class="text-secondary" style="font-size:0.7rem;">Low/Info</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 2: Project Health Distribution -->
+  <div class="col-lg-4">
+    <div class="fg-card h-100">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-heart-pulse text-success me-2"></i>Health Distribution</h3>
+        <span class="text-secondary small">Across Projects</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="healthDistChart"></canvas>
+      </div>
+      <div class="text-center mt-3 pt-2 border-top border-secondary-subtle text-secondary small">
+        Based on multi-dimensional weighted risk calculation
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 3: Programming Language Distribution -->
+  <div class="col-lg-4">
+    <div class="fg-card h-100">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-code-square text-info me-2"></i>Language Distribution</h3>
+        <span class="text-secondary small">Detected Codebases</span>
+      </div>
+      <div style="height: 240px; position: relative;">
+        <canvas id="languageChart"></canvas>
+      </div>
+      <div class="text-center mt-3 pt-2 border-top border-secondary-subtle text-secondary small">
+        Indexed source files across repositories
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Chart 4 & 5: Trends (Code Quality & Security Findings over Scans) -->
+  <div class="col-lg-8">
+    <div class="fg-card">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-graph-up text-primary me-2"></i>Quality & Security Scores Trend</h3>
+        <span class="badge bg-dark border border-secondary text-secondary">Historical Timeline</span>
+      </div>
+      <div style="height: 270px; position: relative;">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart 6: Repository Scan Activity -->
+  <div class="col-lg-4">
+    <div class="fg-card">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-bar-chart text-purple me-2"></i>Scan Activity</h3>
+        <span class="text-secondary small">Status Ratios</span>
+      </div>
+      <div style="height: 270px; position: relative;">
+        <canvas id="scanActivityChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart 7 & Tables: Top Issues & Critical Findings -->
+<div class="row g-4">
+  <!-- Top Frequently Detected Issues -->
+  <div class="col-lg-6">
+    <div class="fg-card">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-list-ol text-warning me-2"></i>Top Detected Issues</h3>
+        <a href="{{ url_for('findings.index') }}" class="small text-primary text-decoration-none">All findings →</a>
+      </div>
+      {% if top_rules %}
+        <div class="table-responsive">
+          <table class="fg-table">
+            <thead>
+              <tr>
+                <th>Issue Title</th>
+                <th class="text-end">Occurrences</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for rule_title, count in top_rules %}
+                <tr>
+                  <td class="fw-semibold text-truncate" style="max-width: 320px;">
+                    <i class="bi bi-exclamation-circle text-warning me-2"></i>{{ rule_title }}
+                  </td>
+                  <td class="text-end"><span class="badge bg-dark border border-secondary">{{ count }}</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-4 text-secondary small">No issues detected across your repositories.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Most Affected Files -->
+  <div class="col-lg-6">
+    <div class="fg-card">
+      <div class="fg-card-header">
+        <h3 class="fg-card-title"><i class="bi bi-file-earmark-code text-danger me-2"></i>Most Affected Files</h3>
+        <span class="text-secondary small">Hotspots</span>
+      </div>
+      {% if top_affected_files %}
+        <div class="table-responsive">
+          <table class="fg-table">
+            <thead>
+              <tr>
+                <th>File Path</th>
+                <th class="text-end">Issues</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fpath, count in top_affected_files %}
+                <tr>
+                  <td class="font-monospace small text-truncate text-white" style="max-width: 340px;">
+                    <i class="bi bi-file-text text-secondary me-2"></i>{{ fpath }}
+                  </td>
+                  <td class="text-end"><span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ count }} flaws</span></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-4 text-secondary small">No affected files found.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // Chart 1: Severity Doughnut
+  const ctxSev = document.getElementById("severityChart").getContext("2d");
+  new Chart(ctxSev, {
+    type: "doughnut",
+    data: {
+      labels: {{ severity_chart_data.labels | tojson }},
+      datasets: [{
+        data: {{ severity_chart_data.data | tojson }},
+        backgroundColor: ["#ef4444", "#f97316", "#f59e0b", "#3b82f6"],
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom", labels: { boxWidth: 12, padding: 15 } }
+      },
+      cutout: "70%"
+    }
+  });
+
+  // Chart 2: Health Distribution
+  const ctxHealth = document.getElementById("healthDistChart").getContext("2d");
+  new Chart(ctxHealth, {
+    type: "pie",
+    data: {
+      labels: {{ health_dist_data.labels | tojson }},
+      datasets: [{
+        data: {{ health_dist_data.data | tojson }},
+        backgroundColor: ["#10b981", "#3b82f6", "#f59e0b", "#ef4444"],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom", labels: { boxWidth: 12, padding: 15 } }
+      }
+    }
+  });
+
+  // Chart 3: Language Polar Area / Doughnut
+  const ctxLang = document.getElementById("languageChart").getContext("2d");
+  new Chart(ctxLang, {
+    type: "doughnut",
+    data: {
+      labels: {{ language_chart_data.labels | tojson }},
+      datasets: [{
+        data: {{ language_chart_data.data | tojson }},
+        backgroundColor: ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#06b6d4", "#ec4899", "#64748b", "#cbd5e1"],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom", labels: { boxWidth: 12, padding: 12 } }
+      },
+      cutout: "60%"
+    }
+  });
+
+  // Chart 4 & 5: Trend Line
+  const ctxTrend = document.getElementById("trendChart").getContext("2d");
+  new Chart(ctxTrend, {
+    type: "line",
+    data: {
+      labels: {{ trend_chart_data.labels | tojson }},
+      datasets: [
+        {
+          label: "Security Score",
+          data: {{ trend_chart_data.security | tojson }},
+          borderColor: "#3b82f6",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: "Quality Score",
+          data: {{ trend_chart_data.quality | tojson }},
+          borderColor: "#10b981",
+          backgroundColor: "transparent",
+          borderDash: [5, 5],
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100 }
+      }
+    }
+  });
+
+  // Chart 6: Scan Activity Bar
+  const ctxAct = document.getElementById("scanActivityChart").getContext("2d");
+  new Chart(ctxAct, {
+    type: "bar",
+    data: {
+      labels: {{ scan_activity_data.labels | tojson }},
+      datasets: [{
+        label: "Scans",
+        data: {{ scan_activity_data.data | tojson }},
+        backgroundColor: ["#10b981", "#ef4444", "#3b82f6"],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

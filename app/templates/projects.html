@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Repository Management — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1">Repository Management</h1>
+    <p class="text-secondary small mb-0">Manage and inspect uploaded codebases, branch trees, and exclusion rules.</p>
+  </div>
+  <a href="{{ url_for('projects.new') }}" class="fg-btn-primary">
+    <i class="bi bi-plus-lg"></i> Add New Repository
+  </a>
+</div>
+
+{% if projects %}
+  <div class="row g-4 mb-4">
+    {% for p in projects %}
+      <div class="col-lg-6 col-xl-4">
+        <div class="fg-card h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                {{ p.language }}
+              </span>
+              {% if p.latest_scan %}
+                <span class="fg-health-badge health-{{ 'excellent' if p.latest_scan.health_label == 'Excellent' else ('good' if p.latest_scan.health_label == 'Good' else ('needs-improvement' if p.latest_scan.health_label == 'Needs Improvement' else 'poor')) }} py-0 px-2" style="font-size: 0.7rem;">
+                  {{ p.latest_scan.health_label }} ({{ p.latest_scan.health_score }} pts)
+                </span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary">Unscanned</span>
+              {% endif %}
+            </div>
+
+            <h3 class="h5 fw-bold text-white mb-1">
+              <a href="{{ url_for('projects.detail', project_id=p.id) }}" class="text-white text-decoration-none hover-primary">
+                {{ p.name }}
+              </a>
+            </h3>
+            <p class="text-secondary small text-truncate-2 mb-3" style="min-height: 38px;">
+              {{ p.description or "No repository description provided." }}
+            </p>
+
+            <div class="row g-2 mb-3 text-secondary small pt-2 border-top border-secondary-subtle">
+              <div class="col-6">
+                <i class="bi bi-file-earmark-code me-1 text-info"></i> {{ p.file_count }} files
+              </div>
+              <div class="col-6 text-end">
+                <i class="bi bi-hdd me-1 text-warning"></i> {{ (p.total_size_bytes / (1024*1024))|round(2) }} MB
+              </div>
+              <div class="col-6">
+                <i class="bi bi-calendar3 me-1"></i> {{ p.created_at.strftime('%d %b %Y') if p.created_at else '—' }}
+              </div>
+              <div class="col-6 text-end">
+                <i class="bi bi-activity me-1 text-primary"></i> {{ p.scans|length }} scans
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 pt-2 border-top border-secondary-subtle">
+            <a href="{{ url_for('projects.detail', project_id=p.id) }}" class="fg-btn-secondary w-50 justify-content-center py-1">
+              <i class="bi bi-folder2-open"></i> Details
+            </a>
+            <form action="{{ url_for('scans.start') }}" method="POST" class="w-50 m-0">
+              <input type="hidden" name="project_id" value="{{ p.id }}">
+              <button type="submit" class="fg-btn-primary w-100 justify-content-center py-1">
+                <i class="bi bi-play-fill"></i> Scan
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="fg-empty-state">
+    <div class="fg-empty-icon"><i class="bi bi-folder-x"></i></div>
+    <h3 class="h5 fw-bold text-white mb-2">No Repositories Registered</h3>
+    <p class="text-secondary small mb-4" style="max-width: 480px; margin: 0 auto;">
+      Upload a ZIP archive of your source code repository or import from GitHub to begin deep static analysis, dependency vulnerability scans, and security intelligence.
+    </p>
+    <a href="{{ url_for('projects.new') }}" class="fg-btn-primary">
+      <i class="bi bi-cloud-arrow-up"></i> Upload Your First Repository
+    </a>
+  </div>
+{% endif %}
+{% endblock %}

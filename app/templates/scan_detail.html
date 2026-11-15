@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Scan #{{ scan.id }} — {{ project.name }} — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <a href="{{ url_for('scans.index') }}" class="text-secondary small text-decoration-none">Scanner</a>
+      <span class="text-secondary small">/</span>
+      <span class="text-white small">Scan #{{ scan.id }}</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <h1 class="h3 fw-bold text-white mb-0">{{ project.name }}</h1>
+      <span id="scanStatusBadge" class="badge {% if scan.status == 'completed' %}bg-success-subtle text-success border border-success-subtle{% elif scan.status == 'failed' %}bg-danger-subtle text-danger border border-danger-subtle{% elif scan.status == 'cancelled' %}bg-warning-subtle text-warning border border-warning-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} px-2 py-1">
+        {{ scan.status|capitalize }}
+      </span>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    {% if scan.status in ('running', 'pending') %}
+      <form action="{{ url_for('scans.cancel', scan_id=scan.id) }}" method="POST" class="m-0">
+        <button type="submit" class="fg-btn-danger">
+          <i class="bi bi-x-circle"></i> Cancel Scan
+        </button>
+      </form>
+    {% elif scan.status in ('failed', 'cancelled') %}
+      <form action="{{ url_for('scans.retry', scan_id=scan.id) }}" method="POST" class="m-0">
+        <button type="submit" class="fg-btn-primary">
+          <i class="bi bi-arrow-clockwise"></i> Retry Scan
+        </button>
+      </form>
+    {% endif %}
+
+    {% if scan.status == 'completed' %}
+      <a href="{{ url_for('reports.index') }}" class="fg-btn-secondary">
+        <i class="bi bi-file-earmark-arrow-down"></i> Reports
+      </a>
+      <a href="{{ url_for('findings.index', scan_id=scan.id) }}" class="fg-btn-primary">
+        <i class="bi bi-shield-exclamation"></i> View All {{ scan.findings_count }} Findings
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Progress Bar & Live Telemetry Panel -->
+<div class="fg-card p-4 mb-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <span class="text-secondary small fw-semibold">CURRENT STAGE:</span>
+      <span id="currentStageText" class="text-white fw-bold ms-2">{{ scan.current_stage }}</span>
+    </div>
+    <div class="text-white fw-bold fs-5" id="progressPercentText">{{ scan.progress_percent }}%</div>
+  </div>
+
+  <div class="progress mb-4" style="height: 10px; background-color: rgba(255,255,255,0.06);">
+    <div id="progressBar" class="progress-bar {% if scan.status in ('running', 'pending') %}progress-bar-striped progress-bar-animated bg-primary{% elif scan.status == 'completed' %}bg-success{% elif scan.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}" style="width: {{ scan.progress_percent }}%;"></div>
+  </div>
+
+  <!-- Telemetry Counter Stats -->
+  <div class="row g-3 text-center">
+    <div class="col-6 col-md-3 border-end border-secondary-subtle">
+      <span class="text-secondary small d-block">Files Analyzed</span>
+      <span id="filesScannedCounter" class="fs-4 fw-bold text-white">{{ scan.files_scanned }}</span>
+      <span class="text-secondary small d-block">({{ scan.files_skipped }} skipped)</span>
+    </div>
+    <div class="col-6 col-md-3 border-end border-secondary-subtle">
+      <span class="text-secondary small d-block">Findings Detected</span>
+      <span id="findingsCounter" class="fs-4 fw-bold text-warning">{{ scan.findings_count }}</span>
+      <span class="text-secondary small d-block">{{ scan.critical_count }} critical</span>
+    </div>
+    <div class="col-6 col-md-3 border-end border-secondary-subtle">
+      <span class="text-secondary small d-block">Elapsed Time</span>
+      <span id="elapsedTimeCounter" class="fs-4 fw-bold text-white">{{ scan.duration_seconds }}s</span>
+      <span class="text-secondary small d-block">execution</span>
+    </div>
+    <div class="col-6 col-md-3">
+      <span class="text-secondary small d-block">Health Rating</span>
+      <span id="healthLabelCounter" class="fs-4 fw-bold text-white">{{ scan.health_label }}</span>
+      <span class="text-secondary small d-block">({{ scan.health_score }}/100)</span>
+    </div>
+  </div>
+
+  {% if scan.error_message %}
+    <div class="alert alert-danger border-0 mt-4 mb-0">
+      <i class="bi bi-exclamation-octagon me-2"></i><strong>Scanner Error:</strong> {{ scan.error_message }}
+    </div>
+  {% endif %}
+</div>
+
+<!-- Scanning Pipeline Stages Timeline -->
+<div class="fg-card mb-4">
+  <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+    <h3 class="fg-card-title"><i class="bi bi-diagram-3 text-primary me-2"></i>Analysis Pipeline Execution Stages</h3>
+  </div>
+
+  <div class="p-3" id="stagesContainer">
+    <div class="row g-2">
+      {% for st in stages %}
+        <div class="col-md-6 col-lg-4" id="stage-card-{{ st.stage_number }}">
+          <div class="p-3 rounded border {% if st.status == 'completed' %}border-success-subtle bg-success-subtle-10{% elif st.status == 'running' %}border-primary bg-primary-subtle-10{% elif st.status == 'failed' %}border-danger bg-danger-subtle-10{% else %}border-secondary-subtle bg-dark{% endif %}">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-semibold small text-white">{{ st.stage_number }}. {{ st.stage_name }}</span>
+              <span class="badge stage-badge {% if st.status == 'completed' %}bg-success{% elif st.status == 'running' %}bg-primary{% elif st.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size: 0.65rem;">
+                {{ st.status|upper }}
+              </span>
+            </div>
+            <div class="stage-msg text-secondary" style="font-size: 0.72rem; min-height: 18px;">
+              {{ st.message or 'Waiting to execute...' }}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Findings Detected during this Scan -->
+{% if findings %}
+  <div class="fg-card">
+    <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+      <h3 class="fg-card-title"><i class="bi bi-shield-alert text-warning me-2"></i>Findings Detected ({{ findings|length }})</h3>
+      <a href="{{ url_for('findings.index', scan_id=scan.id) }}" class="small text-primary text-decoration-none">Filter & Search →</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="fg-table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Category</th>
+            <th>Location</th>
+            <th>Issue Title</th>
+            <th>Rule ID</th>
+            <th class="text-end">Inspect</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in findings[:25] %}
+            <tr>
+              <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+              <td><span class="badge bg-dark border border-secondary text-secondary small">{{ f.category }}</span></td>
+              <td class="font-monospace small text-white text-truncate" style="max-width: 220px;">
+                {{ f.file_path }}:{{ f.line_number or '' }}
+              </td>
+              <td class="fw-semibold text-white">{{ f.title }}</td>
+              <td class="font-monospace small text-secondary">{{ f.rule_id }}</td>
+              <td class="text-end">
+                <button class="fg-btn-secondary py-1 px-2 small" onclick="openFindingModal({{ f.id }})">Details</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Finding Detail Modal Container -->
+{% include "components/finding_modal.html" %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let scanStatus = "{{ scan.status }}";
+const scanId = {{ scan.id }};
+
+function pollScanProgress() {
+  if (scanStatus !== "running" && scanStatus !== "pending") return;
+
+  fetch(`/scans/${scanId}/progress`)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("currentStageText").textContent = data.current_stage;
+      document.getElementById("progressPercentText").textContent = `${data.progress_percent}%`;
+      document.getElementById("progressBar").style.width = `${data.progress_percent}%`;
+      document.getElementById("filesScannedCounter").textContent = data.files_scanned;
+      document.getElementById("findingsCounter").textContent = data.findings_count;
+      document.getElementById("elapsedTimeCounter").textContent = `${data.elapsed_seconds}s`;
+      document.getElementById("healthLabelCounter").textContent = data.health_label;
+
+      // Update Stages
+      if (data.stages) {
+        data.stages.forEach(st => {
+          const card = document.getElementById(`stage-card-${st.number}`);
+          if (card) {
+            const badge = card.querySelector(".stage-badge");
+            const msg = card.querySelector(".stage-msg");
+            if (badge) {
+              badge.textContent = st.status.toUpperCase();
+              badge.className = `badge stage-badge bg-${st.status === 'completed' ? 'success' : (st.status === 'running' ? 'primary' : (st.status === 'failed' ? 'danger' : 'secondary'))}`;
+            }
+            if (msg) msg.textContent = st.message || "";
+          }
+        });
+      }
+
+      scanStatus = data.status;
+      if (data.status === "completed" || data.status === "failed") {
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        setTimeout(pollScanProgress, 1000);
+      }
+    })
+    .catch(err => {
+      console.debug("Scan progress poll:", err);
+      setTimeout(pollScanProgress, 2000);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  if (scanStatus === "running" || scanStatus === "pending") {
+    setTimeout(pollScanProgress, 1000);
+  }
+});
+</script>
+{% endblock %}

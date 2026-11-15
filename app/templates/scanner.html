@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Repository Scanner — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-cpu text-primary me-2"></i>Repository Scanner</h1>
+    <p class="text-secondary small mb-0">Multi-engine static code, security vulnerability, and software dependency scanner.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Scan Configuration Card -->
+  <div class="col-lg-7">
+    <div class="fg-card">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h2 class="h5 fw-bold text-white mb-0">Start Repository Scan</h2>
+      </div>
+
+      {% if projects %}
+        <form action="{{ url_for('scans.start') }}" method="POST" class="mt-3">
+          <div class="mb-4">
+            <label class="form-label small fw-semibold text-secondary">Target Repository <span class="text-danger">*</span></label>
+            <select name="project_id" class="fg-form-control" required>
+              <option value="" disabled {% if not selected_project_id %}selected{% endif %}>Select a repository...</option>
+              {% for p in projects %}
+                <option value="{{ p.id }}" {% if selected_project_id == p.id %}selected{% endif %}>
+                  {{ p.name }} ({{ p.language }} · {{ p.file_count }} files)
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Scan Categories Checkboxes -->
+          <div class="mb-4">
+            <label class="form-label small fw-semibold text-secondary mb-2 d-block">Analysis Categories</label>
+            <div class="row g-2">
+              <div class="col-sm-6">
+                <div class="p-3 rounded border border-secondary-subtle" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" name="categories" value="security" id="catSec" checked>
+                    <label class="form-check-label fw-semibold text-white small" for="catSec">
+                      <i class="bi bi-shield-lock text-danger me-1"></i> Security Analysis
+                    </label>
+                    <div class="text-secondary" style="font-size: 0.72rem;">Secrets, SQL/Cmd injections, deserialization, weak crypto.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-sm-6">
+                <div class="p-3 rounded border border-secondary-subtle" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" name="categories" value="quality" id="catQual" checked>
+                    <label class="form-check-label fw-semibold text-white small" for="catQual">
+                      <i class="bi bi-code-slash text-info me-1"></i> Code Quality & AST
+                    </label>
+                    <div class="text-secondary" style="font-size: 0.72rem;">Cyclomatic complexity, long functions, nesting, maintainability.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-sm-6">
+                <div class="p-3 rounded border border-secondary-subtle" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" name="categories" value="dependency" id="catDep" checked>
+                    <label class="form-check-label fw-semibold text-white small" for="catDep">
+                      <i class="bi bi-box-seam text-warning me-1"></i> Dependency Vulnerabilities
+                    </label>
+                    <div class="text-secondary" style="font-size: 0.72rem;">OSV.dev SCA, requirements.txt, package.json, lockfiles.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-sm-6">
+                <div class="p-3 rounded border border-secondary-subtle" style="background-color: rgba(255, 255, 255, 0.02);">
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" name="categories" value="architecture" id="catArch" checked>
+                    <label class="form-check-label fw-semibold text-white small" for="catArch">
+                      <i class="bi bi-diagram-3 text-primary me-1"></i> Project Architecture
+                    </label>
+                    <div class="text-secondary" style="font-size: 0.72rem;">Language detection, directory mapping, file structure.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary-subtle">
+            <span class="text-secondary small">
+              <i class="bi bi-info-circle me-1"></i> Non-blocking execution via isolated background thread worker.
+            </span>
+            <button type="submit" class="fg-btn-primary">
+              <i class="bi bi-play-fill fs-5"></i> Start Multi-Stage Scan
+            </button>
+          </div>
+        </form>
+      {% else %}
+        <div class="text-center py-4">
+          <p class="text-secondary small mb-3">No repositories available to scan.</p>
+          <a href="{{ url_for('projects.new') }}" class="fg-btn-primary">Upload a Repository First</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Active Scans & Scanning Stages Overview -->
+  <div class="col-lg-5">
+    <!-- Active / Running Scans -->
+    <div class="fg-card mb-4">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h3 class="fg-card-title"><i class="bi bi-arrow-repeat text-primary me-2"></i>Active Scans</h3>
+        <span class="badge bg-primary">{{ active_scans|length }}</span>
+      </div>
+      {% if active_scans %}
+        <div class="d-flex flex-column gap-3 mt-3">
+          {% for scan in active_scans %}
+            <div class="p-3 rounded border border-secondary-subtle" style="background-color: rgba(255, 255, 255, 0.02);">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong class="text-white">Scan #{{ scan.id }} — {{ scan.project.name }}</strong>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ scan.status|capitalize }}</span>
+              </div>
+              <div class="text-secondary small mb-2">{{ scan.current_stage }} ({{ scan.progress_percent }}%)</div>
+              <div class="progress mb-2" style="height: 6px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: {{ scan.progress_percent }}%;"></div>
+              </div>
+              <div class="text-end">
+                <a href="{{ url_for('scans.detail', scan_id=scan.id) }}" class="fg-btn-secondary py-1 px-2 small">Monitor Console →</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-center py-4 text-secondary small">No active scans currently running.</div>
+      {% endif %}
+    </div>
+
+    <!-- 11 Automated Stages Reference -->
+    <div class="fg-card">
+      <div class="fg-card-header pb-2 border-bottom border-secondary-subtle">
+        <h3 class="fg-card-title"><i class="bi bi-list-check text-success me-2"></i>Automated Scan Pipeline</h3>
+      </div>
+      <ol class="small text-secondary ps-3 mt-3 mb-0" style="line-height: 1.8;">
+        <li>Repository Validation</li>
+        <li>File Extraction & Indexing</li>
+        <li>Project Structure Detection</li>
+        <li>Programming Language Detection</li>
+        <li>Source Code Discovery</li>
+        <li>Code Quality Analysis (AST + Radon)</li>
+        <li>Security Analysis (Secrets & CWEs)</li>
+        <li>Dependency Vulnerability Analysis (OSV)</li>
+        <li>Risk & Health Score Calculation</li>
+        <li>Remediation Recommendation Generation</li>
+        <li>Multi-Format Report Generation</li>
+      </ol>
+    </div>
+  </div>
+</div>
+{% endblock %}

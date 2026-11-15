@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Scan Comparison — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <a href="{{ url_for('history.index') }}" class="text-secondary small text-decoration-none">Scan History</a>
+      <span class="text-secondary small">/</span>
+      <span class="text-white small">Scan Comparison</span>
+    </div>
+    <h1 class="h3 fw-bold text-white mb-0"><i class="bi bi-arrow-left-right text-primary me-2"></i>Differential Scan Analysis</h1>
+  </div>
+</div>
+
+<!-- Comparison Selector Form -->
+<div class="fg-card p-4 mb-4">
+  <form method="GET" class="row g-3 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label small fw-semibold text-secondary">Base Scan (Earlier Baseline)</label>
+      <input type="number" name="base_id" class="fg-form-control" placeholder="e.g. 1" value="{{ base_scan.id if base_scan else '' }}" required>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label small fw-semibold text-secondary">Target Scan (Later Comparison)</label>
+      <input type="number" name="target_id" class="fg-form-control" placeholder="e.g. 2" value="{{ target_scan.id if target_scan else '' }}" required>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="fg-btn-primary w-100 justify-content-center py-2">Compare</button>
+    </div>
+  </form>
+</div>
+
+{% if base_scan and target_scan %}
+  <!-- Comparison Delta Overview -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="fg-stat-card {% if health_diff >= 0 %}stat-success{% else %}stat-critical{% endif %}">
+        <span class="fg-stat-label">Health Score Delta</span>
+        <div class="fg-stat-value {% if health_diff >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {% if health_diff > 0 %}+{% endif %}{{ health_diff }} pts
+        </div>
+        <div class="fg-stat-subtext text-secondary">{{ base_scan.health_score }} → {{ target_scan.health_score }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="fg-stat-card {% if new_findings|length > 0 %}stat-critical{% endif %}">
+        <span class="fg-stat-label">New Findings</span>
+        <div class="fg-stat-value text-danger">{{ new_findings|length }}</div>
+        <div class="fg-stat-subtext text-secondary">Introduced since baseline</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="fg-stat-card stat-success">
+        <span class="fg-stat-label">Resolved Findings</span>
+        <div class="fg-stat-value text-success">{{ resolved_findings|length }}</div>
+        <div class="fg-stat-subtext text-secondary">Fixed or remediated</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="fg-stat-card">
+        <span class="fg-stat-label">Persistent Issues</span>
+        <div class="fg-stat-value text-warning">{{ persistent_findings|length }}</div>
+        <div class="fg-stat-subtext text-secondary">Unresolved across scans</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Tabs: New, Resolved, Persistent -->
+  <ul class="nav nav-pills mb-4" id="compareTabs" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active fw-semibold text-danger bg-dark border border-danger-subtle me-2" data-bs-toggle="tab" data-bs-target="#newTab">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i> New Findings ({{ new_findings|length }})
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link fw-semibold text-success bg-dark border border-success-subtle me-2" data-bs-toggle="tab" data-bs-target="#resolvedTab">
+        <i class="bi bi-check-circle-fill me-1"></i> Resolved Findings ({{ resolved_findings|length }})
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link fw-semibold text-warning bg-dark border border-warning-subtle" data-bs-toggle="tab" data-bs-target="#persistentTab">
+        <i class="bi bi-hourglass-split me-1"></i> Persistent Issues ({{ persistent_findings|length }})
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="compareTabsContent">
+    <!-- New Findings -->
+    <div class="tab-pane fade show active" id="newTab">
+      <div class="fg-card">
+        {% if new_findings %}
+          <div class="table-responsive">
+            <table class="fg-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Location</th>
+                  <th>New Issue Title</th>
+                  <th>Rule ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in new_findings %}
+                  <tr>
+                    <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+                    <td class="font-monospace small text-white">{{ f.file_path }}:{{ f.line_number or '' }}</td>
+                    <td class="fw-semibold text-white">{{ f.title }}</td>
+                    <td class="font-monospace small text-secondary">{{ f.rule_id }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-success">
+            <i class="bi bi-check2-circle fs-3 d-block mb-1"></i>
+            No new findings introduced in this scan.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Resolved Findings -->
+    <div class="tab-pane fade" id="resolvedTab">
+      <div class="fg-card">
+        {% if resolved_findings %}
+          <div class="table-responsive">
+            <table class="fg-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Location</th>
+                  <th>Resolved Issue Title</th>
+                  <th>Rule ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in resolved_findings %}
+                  <tr>
+                    <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+                    <td class="font-monospace small text-white">{{ f.file_path }}:{{ f.line_number or '' }}</td>
+                    <td class="fw-semibold text-white text-decoration-line-through text-secondary">{{ f.title }}</td>
+                    <td class="font-monospace small text-secondary">{{ f.rule_id }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-secondary">No issues were resolved between these scans.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Persistent Findings -->
+    <div class="tab-pane fade" id="persistentTab">
+      <div class="fg-card">
+        {% if persistent_findings %}
+          <div class="table-responsive">
+            <table class="fg-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Location</th>
+                  <th>Persistent Issue Title</th>
+                  <th>Rule ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in persistent_findings %}
+                  <tr>
+                    <td><span class="fg-badge-sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+                    <td class="font-monospace small text-white">{{ f.file_path }}:{{ f.line_number or '' }}</td>
+                    <td class="fw-semibold text-white">{{ f.title }}</td>
+                    <td class="font-monospace small text-secondary">{{ f.rule_id }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-secondary">No recurring findings.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="fg-empty-state">
+    <div class="fg-empty-icon"><i class="bi bi-arrow-left-right"></i></div>
+    <h3 class="h5 fw-bold text-white mb-2">Select Two Scans to Compare</h3>
+    <p class="text-secondary small">
+      Enter the Scan ID of your baseline and comparison scans above to see the diff of resolved, new, and persistent vulnerabilities.
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

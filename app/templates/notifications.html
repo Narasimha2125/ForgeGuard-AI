@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Notifications — ForgeGuard AI{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-bell text-primary me-2"></i>System Notifications & Alerts</h1>
+    <p class="text-secondary small mb-0">Stay notified about scan completions, newly surfaced critical vulnerabilities, and audit events.</p>
+  </div>
+  {% if unread_count > 0 %}
+    <form action="{{ url_for('notifications.mark_all_read') }}" method="POST" class="m-0">
+      <button type="submit" class="fg-btn-secondary">
+        <i class="bi bi-check2-all"></i> Mark All as Read ({{ unread_count }})
+      </button>
+    </form>
+  {% endif %}
+</div>
+
+<!-- Notification List -->
+<div class="fg-card">
+  {% if notifications %}
+    <div class="d-flex flex-column gap-2">
+      {% for n in notifications %}
+        <div class="p-3 rounded border {% if not n.is_read %}border-primary bg-primary-subtle-10{% else %}border-secondary-subtle bg-dark{% endif %} d-flex justify-content-between align-items-start gap-3">
+          <div class="d-flex gap-3">
+            <div class="pt-1">
+              {% if n.severity == 'danger' %}
+                <i class="bi bi-exclamation-octagon-fill text-danger fs-5"></i>
+              {% elif n.severity == 'warning' %}
+                <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+              {% elif n.severity == 'success' %}
+                <i class="bi bi-check-circle-fill text-success fs-5"></i>
+              {% else %}
+                <i class="bi bi-info-circle-fill text-primary fs-5"></i>
+              {% endif %}
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <strong class="text-white">{{ n.title }}</strong>
+                {% if not n.is_read %}
+                  <span class="badge bg-primary" style="font-size: 0.65rem;">NEW</span>
+                {% endif %}
+              </div>
+              <p class="text-secondary small mb-1">{{ n.message }}</p>
+              <span class="text-secondary" style="font-size: 0.72rem;">
+                <i class="bi bi-clock me-1"></i>{{ n.created_at.strftime('%d %b %Y, %H:%M') if n.created_at else '' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 align-items-center">
+            {% if n.link_url %}
+              <a href="{{ n.link_url }}" class="fg-btn-secondary py-1 px-2 small">View</a>
+            {% endif %}
+            {% if not n.is_read %}
+              <form action="{{ url_for('notifications.mark_read', notification_id=n.id) }}" method="POST" class="m-0">
+                <button type="submit" class="fg-btn-secondary py-1 px-2 small" title="Mark as read">
+                  <i class="bi bi-check2"></i>
+                </button>
+              </form>
+            {% endif %}
+            <form action="{{ url_for('notifications.delete', notification_id=n.id) }}" method="POST" class="m-0">
+              <button type="submit" class="btn btn-sm btn-link text-secondary p-0" title="Delete notification">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-secondary">
+      <i class="bi bi-bell-slash fs-2 text-secondary d-block mb-2"></i>
+      You have no notifications at this time.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
